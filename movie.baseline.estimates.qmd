@@ -1,0 +1,18 @@
+---
+title: "movie-baseline-estimates"
+author: "Jess Chen"
+format: gfm
+editor: visual
+---
+
+## Global Baseline Estimates
+
+### Approach
+
+The purpose of this project is to experiment with the "Global Baseline Estimate" recommender algorithm. To implement the project, I will:
+
+1.  Upload the Oscar 2026 nominated movies dataset I collected from previous assignment: <https://github.com/JessChen0/Movie-Ratings>
+2.  Identify "user" and "movie" combinations missing ratings
+3.  Write r code to score a rating prediction for a missing user/movie combination
+4.  Double check by manually calculating the baseline estimate score
+5.  Write further r code to compare would be missing ratings for a user and recommend highest score missing rating
