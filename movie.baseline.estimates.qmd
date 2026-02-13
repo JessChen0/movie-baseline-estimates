@@ -7,12 +7,123 @@ editor: visual
 
 ## Global Baseline Estimates
 
-### Approach
 
-The purpose of this project is to experiment with the "Global Baseline Estimate" recommender algorithm. To implement the project, I will:
+## Introduction
 
-1.  Upload the Oscar 2026 nominated movies dataset I collected from previous assignment: <https://github.com/JessChen0/Movie-Ratings>
-2.  Identify "user" and "movie" combinations missing ratings
-3.  Write r code to score a rating prediction for a missing user/movie combination
-4.  Double check by manually calculating the baseline estimate score
-5.  Write further r code to compare would be missing ratings for a user and recommend highest score missing rating
+This project leverages the "Global Baseline Estimates" approach to determine a recommendation system for my dataset "Oscar 2026 Ratings".  Within the project, I will use a step by step process to determine global rating averages, calculate predicted ratings for a user and finally identify the recommendation for next movie to watch based on predicted ratings.
+
+## Data Gathering
+
+Data from a previous project is uploaded and summarized by "missing ratings by user".
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(gt)
+
+movie_ratings_2026 <- read.csv("https://raw.githubusercontent.com/JessChen0/Movie-Ratings/refs/heads/main/oscar_2026_ratings.csv")
+
+glimpse(movie_ratings_2026)
+```
+
+```{r}
+movie_ratings_2026 <- movie_ratings_2026 %>%
+ mutate(score = as.numeric(score))
+
+movie_ratings_2026 %>% group_by(user_id) %>%
+  summarize(missing_rating = sum(is.na(score))) %>%
+  gt() %>%
+  tab_header(title = "Missing ratings by user") 
+
+```
+
+## Data Analysis
+
+To work out the mechanics of how the recommender would work, I first calculated the would be recommended score for a movie/user combination.  After, I calculated the same using R to ensure the calculations are working correctly.
+
+```{r}
+# get total data average
+movie_ratings_2026 %>%
+  summarize (ave_score_v1 = mean(score, na.rm=TRUE))
+
+movie_ratings_2026 %>%
+  summarize (total_sum = sum(score, na.rm=TRUE),
+             total_count = sum(!is.na(score)),
+             avg_score_v2 = total_sum / total_count)
+
+global_ave_score <- mean(as.numeric(movie_ratings_2026$score), na.rm=TRUE)
+
+# calculate average for each movie
+movie_avg <- movie_ratings_2026 %>%
+  group_by(movie_name) %>%
+  summarize(avg_score_movie = mean(as.numeric(score), na.rm=TRUE))
+
+glimpse(movie_avg)
+
+# calculate average for each user
+user_avg <- movie_ratings_2026 %>%
+  group_by(user_id) %>%
+  summarize(avg_score_user = mean(as.numeric(score), na.rm=TRUE))
+
+glimpse(user_avg)
+
+```
+
+While calculating the predicted ratings for "Jess" & "F1", I ran into some issues with the prediction formula and after some LLM querying, I realized my tables were not numeric.  Using the pull() helped me switch the results to numeric which allowed for the pred_score calculation.
+
+```{r}
+# calculate predicted rating for Jess, "F1"
+jess_avg <- user_avg %>%
+  filter(user_id == "Jess") %>%
+  pull(avg_score_user)
+
+f1_avg <- movie_avg %>%
+  filter (movie_name == "F1") %>%
+  pull(avg_score_movie)
+
+# test classes to troubleshoot code error
+class(global_ave_score)
+class(f1_avg)
+class(jess_avg)
+
+pred_score_1 <- global_ave_score + (jess_avg-global_ave_score) + (f1_avg-global_ave_score)
+
+cat("Jess's predicted rating of F1 is", pred_score_1)
+```
+
+The rating for the second missing rating for Jess was "Marty Supreme", calculated below.
+
+```{r}
+# calculate for all missing ratings for Jess
+marty_supreme_avg <- movie_avg %>%
+  filter (movie_name == "Marty Supreme") %>%
+  pull(avg_score_movie)
+
+pred_score_2 <- global_ave_score + (jess_avg-global_ave_score) + (marty_supreme_avg-global_ave_score)
+
+cat("Jess's predicted rating of F1 is", pred_score_2)
+```
+
+Finally, I build the predicted ratings back into the dataframe so that a recommendation based on predicted ratings can be identified for a user (Jess).
+
+```{r}
+# Recommendation for Jess
+movie_ratings_2026_updated <- movie_ratings_2026 %>%
+  mutate(
+    pred_ratings = case_when (
+      user_id == "Jess" & movie_name == "F1" ~ pred_score_1,
+      user_id == "Jess" & movie_name == "Marty Supreme" ~ pred_score_2,
+      TRUE ~ 0
+     )
+  )
+rec_index <- which.max(movie_ratings_2026_updated$pred_ratings)
+rec_Jess <- movie_ratings_2026_updated$movie_name[rec_index]
+cat("Recommended movie for Jess is ", rec_Jess, "!", sep="")
+```
+
+## Conclusion & Further Work
+
+For this project, I calculated average ratings and used a "global baseline estimates" approach to recommend movies to a user.  A logical next step would be to build this model so that it calculates the recommended movie for each of the users in the original table.  Also, to add Marty Supreme to the watch list before March!
+
+References
+Google DeepMind. (2025). Gemini 3 Flash \[Large language model\]. https://gemini.google.com. Accessed Feb 13, 2026. Link: https://gemini.google.com/share/311dff67e989
